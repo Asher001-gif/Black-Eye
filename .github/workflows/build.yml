@@ -1,0 +1,33 @@
+name: Build Game for Itch
+on:
+  push:
+    branches: [ main, master ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build Project
+        run: npm run build
+
+      # GitHub zips the artifact automatically - index.html ends up at the zip root, as itch.io needs
+      - name: Upload Zip for Itch.io
+        uses: actions/upload-artifact@v4
+        with:
+          name: itch-game-zip
+          path: dist/

@@ -1,1 +1,14 @@
-{"name":"black-eye-car-game","version":"1.0.0","type":"module","private":true,"scripts":{"start":"python3 -m http.server 8000","test":"node tests/test.mjs"}}
+{
+  "name": "black-eye-car-game",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node tests/test.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}

@@ -10,6 +10,7 @@ fs.mkdirSync(out + '/vendor/addons/environments', { recursive: true });
 
 fs.cpSync('js', out + '/js', { recursive: true });
 fs.cpSync('assets/car.glb', out + '/assets/car.glb', { recursive: true });
+fs.cpSync('assets/ground', out + '/assets/ground', { recursive: true });
 
 const t = 'node_modules/three';
 fs.copyFileSync(`${t}/build/three.module.js`, out + '/vendor/three.module.js');

@@ -59,12 +59,18 @@ function canvasTex(w, h, draw, repeat) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; } return t;
 }
-const grass = canvasTex(128, 128, (g, w, h) => {
-  g.fillStyle = '#4f9d3a'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#58a842'; g.fillRect(0, 0, w / 2, h / 2); g.fillRect(w / 2, h / 2, w / 2, h / 2);
-}, true);
-grass.repeat.set(300, 300);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ map: grass }));
+// moss ground (textures from moss_texture.zip, downscaled to 512 px for phones)
+const TILE = 6, REPEAT = 3000 / TILE;
+const texLoader = new THREE.TextureLoader();
+function groundTex(file, srgb) {
+  const t = texLoader.load('assets/ground/' + file);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(REPEAT, REPEAT);
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({
+  map: groundTex('moss_color.jpg', true), normalMap: groundTex('moss_normal.jpg', false), normalScale: new THREE.Vector2(0.9, 0.9),
+  roughnessMap: groundTex('moss_rough.jpg', false), roughness: 1, metalness: 0 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
 // ---------- road ----------

@@ -50,10 +50,11 @@
                 padding: 9px 13px; font: 700 14px system-ui, sans-serif; }
   #top button:active { background: rgba(0,0,0,.6); }
 
-  #loading { position: fixed; inset: 0; background: #2f86e6; color: #fff; display: flex; flex-direction: column; gap: 14px;
-             align-items: center; justify-content: center; font: 600 18px system-ui, sans-serif; z-index: 10; text-align: center; padding: 24px; }
-  #bar { width: 220px; height: 8px; background: rgba(255,255,255,.3); border-radius: 4px; overflow: hidden; }
-  #bar i { display: block; height: 100%; width: 0%; background: #fff; }
+  #loading { position: fixed; left: 50%; top: calc(14px + var(--safe-t)); transform: translateX(-50%); max-width: 92vw; background: rgba(10,18,32,.72);
+             color: #fff; display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 8px 18px 10px; border-radius: 14px;
+             font: 600 14px system-ui, sans-serif; z-index: 10; text-align: center; pointer-events: none; }
+  #bar { width: 150px; height: 5px; background: rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0%; background: #fff; transition: width .15s; }
   #loading.hide { display: none; }
 </style>
 <script type="importmap">
@@ -81,7 +82,7 @@
   <div id="gas" class="pedal">GAS</div>
 </div>
 
-<div id="loading"><div id="loadmsg">Loading Corvette…</div><div id="bar"><i></i></div></div>
+<div id="loading"><div id="loadmsg">Loading files…</div><div id="bar"><i></i></div></div>
 
 <script type="module" src="js/main.js"></script>
 </body>

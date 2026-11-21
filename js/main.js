@@ -61,12 +61,25 @@ function canvasTex(w, h, draw, repeat) {
 }
 // moss ground (textures from moss_texture.zip, downscaled to 512 px for phones)
 const TILE = 6, REPEAT = 3000 / TILE;
+const RETRY_MS = 3000, failed = new Set();
+function showRetry() {
+  $('loading').classList.remove('hide');
+  $('loadmsg').textContent = 'Failed to fetch files. Don\u2019t worry, trying again\u2026';
+  document.querySelector('#bar i').style.width = '0%';
+}
+function maybeHide() { if (started && failed.size === 0) { $('loading').classList.add('hide'); $('loadmsg').textContent = 'Loading files\u2026'; } }
 const texLoader = new THREE.TextureLoader();
 function groundTex(file, srgb) {
-  const t = texLoader.load('assets/ground/' + file);
+  const t = new THREE.Texture();
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(REPEAT, REPEAT);
   t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  const fetchImage = () => texLoader.load('assets/ground/' + file,
+    (src) => { t.image = src.image; t.needsUpdate = true; failed.delete(file); maybeHide(); },
+    undefined,
+    () => { failed.add(file); showRetry(); setTimeout(fetchImage, RETRY_MS); });
+  fetchImage();
+  return t;
 }
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({
   map: groundTex('moss_color.jpg', true), normalMap: groundTex('moss_normal.jpg', false), normalScale: new THREE.Vector2(0.9, 0.9),
@@ -98,14 +111,23 @@ const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.6), new THREE.MeshB
 shadow.material.opacity = 0.5; shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; carRoot.add(shadow);
 
 const loadEl = $('loading'), bar = document.querySelector('#bar i');
-new GLTFLoader().load('assets/car.glb', (gltf) => {
-  gltf.scene.traverse((o) => { if (o.material) { o.material.envMapIntensity = 1.0; if (o.material.transparent) o.material.depthWrite = false; } if (o.isMesh) o.castShadow = !(o.material && o.material.transparent); });
-  for (const k of ['FL', 'FR', 'RL', 'RR']) { const w = gltf.scene.getObjectByName('Wheel_' + k); if (w) { w.rotation.order = 'YXZ'; wheels[k] = w; } }
-  tilt.add(gltf.scene); applyPaint();
-  loadEl.classList.add('hide'); started = true;
-}, (e) => { if (e.total) bar.style.width = (100 * e.loaded / e.total) + '%'; },
-(err) => { $('loadmsg').innerHTML = 'Could not load assets/car.glb.<br><small>Serve the folder over http (e.g. <code>python3 -m http.server</code>) — opening index.html directly from a file won\'t work.</small>'; console.error(err); });
+function loadCar() {
+  new GLTFLoader().load('assets/car.glb', (gltf) => {
+    gltf.scene.traverse((o) => { if (o.material) { o.material.envMapIntensity = 1.0; if (o.material.transparent) o.material.depthWrite = false; } if (o.isMesh) o.castShadow = !(o.material && o.material.transparent); });
+    for (const k of ['FL', 'FR', 'RL', 'RR']) { const w = gltf.scene.getObjectByName('Wheel_' + k); if (w) { w.rotation.order = 'YXZ'; wheels[k] = w; } }
+    tilt.add(gltf.scene); applyPaint();
+    started = true; failed.delete('car'); maybeHide();
+  }, (e) => { if (e.total) bar.style.width = (100 * e.loaded / e.total) + '%'; },
+  (err) => {
+    console.error(err);
+    if (location.protocol === 'file:') {   // retrying can't help here
+      $('loadmsg').innerHTML = 'Can\u2019t load files from a local file.<br><small>Serve the folder over http (e.g. <code>python3 -m http.server</code>).</small>'; return;
+    }
+    failed.add('car'); showRetry(); setTimeout(loadCar, RETRY_MS);
+  });
+}
 let started = false;
+loadCar();
 
 // paint colour button (the supplied car texture is a very dark paint, so offer a few colours)
 const PAINTS = [['Red', 0xc8101e], ['Yellow', 0xf2b705], ['Blue', 0x1457d6], ['White', 0xe9eaee], ['Original', 0x0f1a12]];

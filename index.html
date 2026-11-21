@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2f86e6">
+<title>Black Eye – Corvette Drive</title>
+<style>
+  :root { --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
+          --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
+      -webkit-touch-callout: none; touch-action: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #7fc8ff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* joystick */
+  #stick { position: fixed; left: calc(28px + var(--safe-l)); bottom: calc(30px + var(--safe-b)); width: 150px; height: 150px;
+           border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.55);
+           backdrop-filter: blur(2px); }
+  #stick::before { content: ""; position: absolute; left: 50%; top: 50%; width: 70%; height: 2px; transform: translate(-50%,-50%);
+           background: rgba(255,255,255,.35); }
+  #knob { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+          background: radial-gradient(circle at 35% 30%, #fff, #cfd8e3 70%); box-shadow: 0 3px 10px rgba(0,0,0,.35); }
+
+  /* pedals */
+  #pedals { position: fixed; right: calc(24px + var(--safe-r)); bottom: calc(28px + var(--safe-b)); display: flex; gap: 14px; align-items: flex-end; }
+  .pedal { border: 2px solid rgba(255,255,255,.6); color: #fff; font-weight: 800; letter-spacing: .06em; border-radius: 22px;
+           display: flex; align-items: center; justify-content: center; text-shadow: 0 1px 3px rgba(0,0,0,.5);
+           transition: transform .05s, background .05s; }
+  #brake { width: 92px; height: 112px; background: rgba(220,50,50,.45); }
+  #gas   { width: 104px; height: 158px; background: rgba(40,190,90,.45); }
+  .pedal.on { transform: scale(.94); }
+  #brake.on { background: rgba(235,45,45,.85); }
+  #gas.on   { background: rgba(35,205,95,.9); }
+
+  /* speedometer */
+  #speedo { position: fixed; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); width: 190px; height: 190px; pointer-events: none; }
+  @media (max-aspect-ratio: 1/1) { #speedo { left: auto; right: calc(10px + var(--safe-r)); top: calc(10px + var(--safe-t)); bottom: auto; transform: none; width: 150px; height: 150px; } }
+  #speedo svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+  #kmh { font: 800 46px system-ui, sans-serif; fill: #fff; }
+  #unit { font: 700 13px system-ui, sans-serif; fill: #bcd; letter-spacing: .12em; }
+
+  /* top-left buttons */
+  #top { position: fixed; left: calc(10px + var(--safe-l)); top: calc(10px + var(--safe-t)); display: flex; gap: 8px; }
+  #top button { background: rgba(0,0,0,.35); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 12px;
+                padding: 9px 13px; font: 700 14px system-ui, sans-serif; }
+  #top button:active { background: rgba(0,0,0,.6); }
+
+  #loading { position: fixed; inset: 0; background: #2f86e6; color: #fff; display: flex; flex-direction: column; gap: 14px;
+             align-items: center; justify-content: center; font: 600 18px system-ui, sans-serif; z-index: 10; text-align: center; padding: 24px; }
+  #bar { width: 220px; height: 8px; background: rgba(255,255,255,.3); border-radius: 4px; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0%; background: #fff; }
+  #loading.hide { display: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="top">
+  <button id="btnReset">⟲ Reset</button>
+  <button id="btnTrack">Track: Square</button>
+  <button id="btnFull">⛶</button>
+</div>
+
+<div id="speedo">
+  <svg viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="92" fill="rgba(10,18,32,.72)" stroke="rgba(255,255,255,.5)" stroke-width="2"/>
+    <g id="ticks"></g>
+    <line id="needle" x1="100" y1="100" x2="100" y2="30" stroke="#ff4040" stroke-width="3.5" stroke-linecap="round" transform="rotate(-135 100 100)"/>
+    <circle cx="100" cy="100" r="7" fill="#ddd"/>
+    <text id="kmh" x="100" y="150" text-anchor="middle">0</text>
+    <text id="unit" x="100" y="168" text-anchor="middle">KM/H</text>
+  </svg>
+</div>
+
+<div id="stick"><div id="knob"></div></div>
+<div id="pedals">
+  <div id="brake" class="pedal">BRAKE</div>
+  <div id="gas" class="pedal">GAS</div>
+</div>
+
+<div id="loading"><div id="loadmsg">Loading Corvette…</div><div id="bar"><i></i></div></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -89,11 +89,21 @@ const loadEl = $('loading'), bar = document.querySelector('#bar i');
 new GLTFLoader().load('assets/car.glb', (gltf) => {
   gltf.scene.traverse((o) => { if (o.material) { o.material.envMapIntensity = 1.0; if (o.material.transparent) o.material.depthWrite = false; } });
   for (const k of ['FL', 'FR', 'RL', 'RR']) { const w = gltf.scene.getObjectByName('Wheel_' + k); if (w) { w.rotation.order = 'YXZ'; wheels[k] = w; } }
-  tilt.add(gltf.scene);
+  tilt.add(gltf.scene); applyPaint();
   loadEl.classList.add('hide'); started = true;
 }, (e) => { if (e.total) bar.style.width = (100 * e.loaded / e.total) + '%'; },
 (err) => { $('loadmsg').innerHTML = 'Could not load assets/car.glb.<br><small>Serve the folder over http (e.g. <code>python3 -m http.server</code>) — opening index.html directly from a file won\'t work.</small>'; console.error(err); });
 let started = false;
+
+// paint colour button (the supplied car texture is a very dark paint, so offer a few colours)
+const PAINTS = [['Red', 0xc8101e], ['Yellow', 0xf2b705], ['Blue', 0x1457d6], ['White', 0xe9eaee], ['Original', 0x0f1a12]];
+let paintIdx = Math.max(0, PAINTS.findIndex((p) => p[0].toLowerCase() === (params.get('paint') || 'red').toLowerCase()));
+function applyPaint() {
+  const [name, hex] = PAINTS[paintIdx]; $('btnPaint').textContent = 'Paint: ' + name;
+  const n = tilt.getObjectByName('Body_CarpaintMain');
+  if (n) n.traverse((o) => { if (o.material) o.material.color.setHex(hex).convertSRGBToLinear(); });
+}
+$('btnPaint').onclick = () => { paintIdx = (paintIdx + 1) % PAINTS.length; applyPaint(); };
 
 // ---------- state ----------
 const S = makeState();

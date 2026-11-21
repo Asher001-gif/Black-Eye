@@ -35,12 +35,14 @@
   #brake.on { background: rgba(235,45,45,.85); }
   #gas.on   { background: rgba(35,205,95,.9); }
 
-  /* speedometer */
-  #speedo { position: fixed; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); width: 190px; height: 190px; pointer-events: none; }
-  @media (max-aspect-ratio: 1/1) { #speedo { left: auto; right: calc(10px + var(--safe-r)); top: calc(10px + var(--safe-t)); bottom: auto; transform: none; width: 150px; height: 150px; } }
-  #speedo svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
-  #kmh { font: 800 46px system-ui, sans-serif; fill: #fff; }
-  #unit { font: 700 13px system-ui, sans-serif; fill: #bcd; letter-spacing: .12em; }
+  /* compact speed readout (bottom centre, small so it doesn't cover the car) */
+  #speedo { position: fixed; left: 50%; bottom: calc(10px + var(--safe-b)); transform: translateX(-50%); width: 92px; padding: 4px 10px 6px;
+            background: rgba(10,18,32,.62); border: 1px solid rgba(255,255,255,.35); border-radius: 14px; text-align: center; color: #fff; pointer-events: none; }
+  @media (max-aspect-ratio: 1/1) { #speedo { bottom: calc(200px + var(--safe-b)); } }
+  #kmh { font: 800 26px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  #unit { font: 700 10px system-ui, sans-serif; color: #bcd; letter-spacing: .12em; margin-top: 1px; }
+  #sbar { height: 4px; margin-top: 4px; background: rgba(255,255,255,.2); border-radius: 2px; overflow: hidden; }
+  #sbar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#3ddc84,#f2c230 60%,#ff4d4d); }
 
   /* top-left buttons */
   #top { position: fixed; left: calc(10px + var(--safe-l)); top: calc(10px + var(--safe-t)); display: flex; gap: 8px; }
@@ -71,16 +73,7 @@
   <button id="btnFull">⛶</button>
 </div>
 
-<div id="speedo">
-  <svg viewBox="0 0 200 200">
-    <circle cx="100" cy="100" r="92" fill="rgba(10,18,32,.72)" stroke="rgba(255,255,255,.5)" stroke-width="2"/>
-    <g id="ticks"></g>
-    <line id="needle" x1="100" y1="100" x2="100" y2="30" stroke="#ff4040" stroke-width="3.5" stroke-linecap="round" transform="rotate(-135 100 100)"/>
-    <circle cx="100" cy="100" r="7" fill="#ddd"/>
-    <text id="kmh" x="100" y="150" text-anchor="middle">0</text>
-    <text id="unit" x="100" y="168" text-anchor="middle">KM/H</text>
-  </svg>
-</div>
+<div id="speedo"><div id="kmh">0</div><div id="unit">KM/H</div><div id="sbar"><i></i></div></div>
 
 <div id="stick"><div id="knob"></div></div>
 <div id="pedals">

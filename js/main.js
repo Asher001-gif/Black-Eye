@@ -19,6 +19,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMappingExposure = 1.0;
 
 const scene = new THREE.Scene();
@@ -36,7 +38,11 @@ function resize() {
 window.addEventListener('resize', resize); resize();
 
 scene.add(new THREE.HemisphereLight(0xdff0ff, 0x4a7a3a, 0.9));
-const sun = new THREE.DirectionalLight(0xfff4e0, 2.2); sun.position.set(-120, 200, 80); scene.add(sun);
+const SUN_OFFSET = new THREE.Vector3(-90, 160, 60);
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.4); sun.position.copy(SUN_OFFSET); scene.add(sun, sun.target);
+sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 10, far: 400 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
 
 // sky dome (blue gradient)
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1800, 24, 12), new THREE.ShaderMaterial({
@@ -59,7 +65,7 @@ const grass = canvasTex(128, 128, (g, w, h) => {
 }, true);
 grass.repeat.set(300, 300);
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ map: grass }));
-ground.rotation.x = -Math.PI / 2; scene.add(ground);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
 // ---------- road ----------
 const center = buildCenterline(SHAPE);
@@ -72,7 +78,7 @@ const roadTex = canvasTex(256, 512, (g, w, h) => {
 roadTex.wrapS = THREE.ClampToEdgeWrapping; roadTex.wrapT = THREE.RepeatWrapping;
 const road = new THREE.Mesh(buildRoadGeometry(center), new THREE.MeshStandardMaterial({
   map: roadTex, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-scene.add(road);
+road.receiveShadow = true; scene.add(road);
 
 // ---------- car ----------
 const carRoot = new THREE.Group(); scene.add(carRoot);
@@ -83,11 +89,11 @@ const shadowTex = canvasTex(128, 256, (g, w, h) => {
   r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, w, h);
 }, false);
 const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 6.6), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
-shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; carRoot.add(shadow);
+shadow.material.opacity = 0.5; shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.04; carRoot.add(shadow);
 
 const loadEl = $('loading'), bar = document.querySelector('#bar i');
 new GLTFLoader().load('assets/car.glb', (gltf) => {
-  gltf.scene.traverse((o) => { if (o.material) { o.material.envMapIntensity = 1.0; if (o.material.transparent) o.material.depthWrite = false; } });
+  gltf.scene.traverse((o) => { if (o.material) { o.material.envMapIntensity = 1.0; if (o.material.transparent) o.material.depthWrite = false; } if (o.isMesh) o.castShadow = !(o.material && o.material.transparent); });
   for (const k of ['FL', 'FR', 'RL', 'RR']) { const w = gltf.scene.getObjectByName('Wheel_' + k); if (w) { w.rotation.order = 'YXZ'; wheels[k] = w; } }
   tilt.add(gltf.scene); applyPaint();
   loadEl.classList.add('hide'); started = true;
@@ -155,30 +161,21 @@ function readInput() {
   input.brake = (pedal.brake || keys.has('ArrowDown') || keys.has('KeyS') || keys.has('Space')) ? 1 : 0;
 }
 
-// ---------- speedometer ----------
+// ---------- speed readout ----------
 const MAXK = 260;
-(function buildTicks() {
-  const g = $('ticks'); let s = '';
-  for (let v = 0; v <= MAXK; v += 20) {
-    const a = (-135 + (v / MAXK) * 270) * Math.PI / 180, c = Math.cos(a), si = Math.sin(a);
-    const x1 = 100 + 80 * si, y1 = 100 - 80 * c, x2 = 100 + 70 * si, y2 = 100 - 70 * c, xt = 100 + 58 * si, yt = 100 - 58 * c;
-    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${v > 200 ? '#ff6b6b' : '#fff'}" stroke-width="2.5"/>`;
-    s += `<text x="${xt}" y="${yt + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#cfe">${v}</text>`;
-  }
-  g.innerHTML = s;
-})();
-const needle = $('needle'), kmhEl = $('kmh');
+const kmhEl = $('kmh'), sbar = document.querySelector('#sbar i');
 let shownKmh = 0;
 function updateSpeedo(kmh) {
   shownKmh += (kmh - shownKmh) * 0.25;
-  needle.setAttribute('transform', `rotate(${-135 + Math.min(shownKmh, MAXK) / MAXK * 270} 100 100)`);
-  kmhEl.textContent = Math.round(Math.abs(shownKmh));
+  kmhEl.textContent = Math.round(shownKmh);
+  sbar.style.width = Math.min(100, shownKmh / MAXK * 100) + '%';
 }
 
 // ---------- placement / camera ----------
 let camYaw = 0, prevSpeed = 0, pitch = 0, roll = 0;
 const camPos = new THREE.Vector3(), look = new THREE.Vector3();
 function placeCar() {
+  sun.target.position.set(S.x, 0, S.z); sun.position.set(S.x + SUN_OFFSET.x, SUN_OFFSET.y, S.z + SUN_OFFSET.z);
   carRoot.position.set(S.x, 0.05, S.z); carRoot.rotation.y = S.yaw;
 }
 function placeCamera(k) {
